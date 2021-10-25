@@ -1,14 +1,16 @@
-use crate::config::{Config, IfIssueComment, OnCommon, OnIssueComment, Step};
-use crate::event::{CommonEvent, Event, IssueCommentEvent};
-use cel_interpreter::objects::*;
+use crate::{
+    config::{Config, IfIssueComment, OnCommon, OnIssueComment, Step},
+    event::{CommonEvent, Event, IssueCommentEvent},
+};
 use jsonpath::Selector;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde_json::{Map, Value};
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::process::Command;
-use std::rc::Rc;
+use std::{borrow::Cow, process::Command};
+
+lazy_static! {
+    static ref RE: Regex = Regex::new(r#"\$\{\{(.*?)\}\}"#).unwrap();
+}
 
 pub trait Runner<'c> {
     type Payload;
@@ -36,12 +38,12 @@ impl<'c> Runner<'c> for Config {
                 if let Some(runner) = &self.on.issue_comment {
                     runner.run(&Context {
                         context: context.context,
-                        payload: &payload,
+                        payload,
                     })?;
                 }
             }
         }
-        Ok(()).into()
+        Ok(())
     }
 }
 
@@ -112,7 +114,7 @@ where
 
     fn eval(&self, payload: &Self::Payload) -> anyhow::Result<bool> {
         for s in self {
-            if !s.eval(&payload)? {
+            if !s.eval(payload)? {
                 return Ok(false);
             }
         }
@@ -137,7 +139,7 @@ impl Eval for IfIssueComment {
                 Ok(result)
             }
             Self::UserIn(expected) => Ok(expected.contains(&payload.comment.user.login)),
-            Self::Command(expected) => is_command(&expected, &payload.comment.body),
+            Self::Command(expected) => is_command(expected, &payload.comment.body),
         };
 
         log::debug!("{:?} => {:?}", self, r);
@@ -170,58 +172,11 @@ fn run(command: &str, context: &serde_json::Value) -> anyhow::Result<()> {
     Ok(())
 }
 
-lazy_static! {
-    static ref RE: Regex = Regex::new(r#"\$\{\{(.*?)\}\}"#).unwrap();
-}
-
-struct CelReplacer<'a> {
-    pub context: cel_interpreter::context::Context,
-    pub errors: &'a mut Vec<anyhow::Error>,
-}
-
-impl<'a> CelReplacer<'a> {
-    pub fn new(context: &Map<String, Value>, errors: &'a mut Vec<anyhow::Error>) -> Self {
-        let context = cel_interpreter::context::Context {
-            variables: convert_map(context),
-            functions: Default::default(),
-        };
-        Self { context, errors }
-    }
-}
-
-impl<'a> regex::Replacer for CelReplacer<'a> {
-    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-        log::debug!("Replace: {:#?}", caps);
-
-        let expr = &caps[1];
-        let p = match cel_interpreter::Program::compile(expr) {
-            Ok(p) => p,
-            Err(err) => {
-                log::debug!("Failed to compile: '{}' -> {}", expr, err);
-                self.errors.push(err.into());
-                return;
-            }
-        };
-
-        match p.execute(&self.context) {
-            CelType::String(s) => dst.push_str(s.as_str()),
-            CelType::Int(v) => dst.push_str(&format!("{}", v)),
-            CelType::Bool(v) => dst.push_str(&format!("{}", v)),
-            CelType::Float(v) => dst.push_str(&format!("{}", v)),
-            CelType::UInt(v) => dst.push_str(&format!("{}", v)),
-            CelType::Null => {}
-            v => {
-                self.errors
-                    .push(anyhow::anyhow!("Unsupported return type: {:?}", v));
-            }
-        };
-    }
-}
-
 struct JsonPathReplacer<'a> {
     pub context: Value,
     pub errors: &'a mut Vec<anyhow::Error>,
 }
+
 impl<'a> JsonPathReplacer<'a> {
     pub fn new(context: &Map<String, Value>, errors: &'a mut Vec<anyhow::Error>) -> Self {
         Self {
@@ -230,6 +185,7 @@ impl<'a> JsonPathReplacer<'a> {
         }
     }
 }
+
 impl<'a> regex::Replacer for JsonPathReplacer<'a> {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
         log::debug!("Replace: {:#?}", caps);
@@ -269,45 +225,6 @@ impl<'a> JsonPathReplacer<'a> {
             n => Err(anyhow::anyhow!("More than one item found: {:?}", n)),
         }
     }
-}
-
-fn convert(value: &serde_json::Value) -> CelType {
-    match value {
-        Value::Null => CelType::Null,
-        Value::String(s) => CelType::String(Rc::new(s.to_string())),
-        Value::Bool(b) => CelType::Bool(*b),
-        Value::Number(n) => {
-            if let Some(n) = n.as_f64() {
-                CelType::Float(n)
-            } else if let Some(n) = n.as_u64() {
-                CelType::UInt(n as u32)
-            } else if let Some(n) = n.as_i64() {
-                CelType::Int(n as i32)
-            } else {
-                CelType::Null
-            }
-        }
-        Value::Array(a) => {
-            // FIXME: handle arrays
-            CelType::Null
-        }
-        Value::Object(m) => CelType::Map(CelMap {
-            map: Rc::new(
-                convert_map(m)
-                    .into_iter()
-                    .map(|(k, v)| (CelKey::String(Rc::new(k)), v))
-                    .collect(),
-            ),
-        }),
-    }
-}
-
-fn convert_map(map: &Map<String, Value>) -> HashMap<String, CelType> {
-    let mut variables = HashMap::new();
-    for (k, v) in map {
-        variables.insert(k.to_string(), convert(v));
-    }
-    variables
 }
 
 fn eval(text: &str, context: &serde_json::Map<String, Value>) -> anyhow::Result<String> {
