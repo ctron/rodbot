@@ -45,12 +45,14 @@ jobs:
       - name: Build
         uses: actions-rs/cargo@v1
         with:
-          command: build --release
+          command: build
+          args: --release
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
-          command: test --release
+          command: test
+          args: --release
 
       - name: Store artifact
         uses: actions/upload-artifact@v1
