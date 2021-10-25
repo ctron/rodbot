@@ -217,7 +217,6 @@ impl<'a> JsonPathReplacer<'a> {
             .collect::<Vec<_>>();
 
         log::debug!("{} ({}) => {:?}", expr, path, val);
-        // log::debug!("Context: {:#?}", self.context);
 
         match val.as_slice() {
             [] => Ok(String::new()),
