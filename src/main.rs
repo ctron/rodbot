@@ -24,10 +24,42 @@ fn main() -> anyhow::Result<()> {
                 .takes_value(true)
                 .env("RODBOT_CONFIG"),
         )
+        .arg(
+            Arg::with_name("verbose")
+                .long("verbose")
+                .short("v")
+                .multiple(true),
+        )
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .short("d")
+                .conflicts_with("verbose"),
+        )
+        .arg(
+            Arg::with_name("quiet")
+                .long("quiet")
+                .short("q")
+                .conflicts_with_all(&["debug", "verbose"]),
+        )
         .get_matches();
 
+    let filter = match (
+        matches.is_present("quiet"),
+        matches.is_present("debug"),
+        matches.occurrences_of("verbose"),
+    ) {
+        (true, _, _) => LevelFilter::Off,
+        (_, true, 0) => LevelFilter::Debug,
+        (_, true, _) => LevelFilter::Trace,
+        (_, false, 0) => LevelFilter::Warn,
+        (_, false, 1) => LevelFilter::Info,
+        (_, false, 2) => LevelFilter::Debug,
+        (_, false, _) => LevelFilter::Trace,
+    };
+
     TermLogger::init(
-        LevelFilter::Debug,
+        filter,
         Default::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
