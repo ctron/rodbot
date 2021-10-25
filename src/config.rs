@@ -60,7 +60,7 @@ on:
   issue_comment:
     - if:
         - command: "test"
-        - user_is: ["AUTHOR", "MEMBER"]
+        - user_is: ["OWNER", "MEMBER"]
         - is_pr
         - user_in: ["foo", "bar"]
       steps:
@@ -79,8 +79,8 @@ on:
                 r#if: vec![
                     IfIssueComment::Command("test".into()),
                     IfIssueComment::UserIs(vec![
+                        AuthorAssociation::Owner,
                         AuthorAssociation::Member,
-                        AuthorAssociation::Owner
                     ]),
                     IfIssueComment::IsPr,
                     IfIssueComment::UserIn(vec!["foo".into(), "bar".into()])
