@@ -6,6 +6,7 @@ on:
         - is_pr
       steps:
         - run: |
+            true
             echo gh api repos/drogue-iot/drogue-cloud-testing/actions/workflows/ci.yaml/dispatches -F ref=main -F input='{"prNr": ${{ github.event.issue.number }}}'
     - if:
         - command: "test"

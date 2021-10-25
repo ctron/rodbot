@@ -180,11 +180,22 @@ fn run(command: &str, context: &serde_json::Value) -> anyhow::Result<()> {
     };
 
     let mut cmd = Command::new("sh");
-    cmd.arg("-c").arg(eval(command, &context)?);
+    cmd.arg("--noprofile")
+        .arg("--norc")
+        .arg("-e")
+        .arg("-o")
+        .arg("pipefail")
+        .arg("-c")
+        .arg(eval(command, &context)?);
 
     log::info!("Running: {:?}", cmd);
 
-    cmd.status()?;
+    let status = cmd.status()?;
+
+    if !status.success() {
+        log::warn!("Failed to run command: {:?} = {:?}", cmd, status);
+        anyhow::bail!("Failed run command");
+    }
 
     Ok(())
 }
