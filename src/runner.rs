@@ -179,7 +179,7 @@ fn run(command: &str, context: &serde_json::Value) -> anyhow::Result<()> {
         _ => Cow::Owned(Map::new()),
     };
 
-    let mut cmd = Command::new("sh");
+    let mut cmd = Command::new("bash");
     cmd.arg("--noprofile")
         .arg("--norc")
         .arg("-e")
