@@ -7,3 +7,18 @@ on:
       steps:
         - run: |
             echo gh api repos/drogue-iot/drogue-cloud-testing/actions/workflows/ci.yaml/dispatches -F ref=main -F input='{"prNr": ${{ github.event.issue.number }}}'
+    - if:
+        - command: "test"
+        - user_is: ["MEMBER", "OWNER"]
+        - not: is_pr
+      steps:
+        - run: |
+            echo not PR
+    - if:
+        - or:
+            - command: "foo"
+            - command: "bar"
+        - user_is: ["MEMBER", "OWNER"]
+      steps:
+        - run: |
+            echo foo or bar

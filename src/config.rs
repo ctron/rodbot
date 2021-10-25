@@ -36,6 +36,9 @@ pub struct OnCommon {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum IfIssueComment {
+    Not(Box<IfIssueComment>),
+    And(Vec<IfIssueComment>),
+    Or(Vec<IfIssueComment>),
     IsPr,
     UserIs(Vec<AuthorAssociation>),
     UserIn(Vec<String>),
@@ -68,7 +71,7 @@ on:
             echo "${{ github.event.issue.number }}"
 "#;
 
-        let cfg: Config = serde_yaml::from_str(&yaml).expect("Must parse");
+        let cfg: Config = serde_yaml::from_str(yaml).expect("Must parse");
 
         assert_eq!(
             cfg.on.issue_comment.unwrap()[0],

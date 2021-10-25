@@ -112,7 +112,11 @@ where
 {
     type Payload = P;
 
+    /// if all checks eval to true, we return true too. Unless we have no checks at all.
     fn eval(&self, payload: &Self::Payload) -> anyhow::Result<bool> {
+        if self.is_empty() {
+            return Ok(false);
+        }
         for s in self {
             if !s.eval(payload)? {
                 return Ok(false);
@@ -127,6 +131,19 @@ impl Eval for IfIssueComment {
 
     fn eval(&self, payload: &Self::Payload) -> anyhow::Result<bool> {
         let r = match self {
+            Self::Not(expr) => Ok(!expr.eval(payload)?),
+            Self::And(children) => children.eval(payload), // default is and
+            Self::Or(children) => {
+                // return true if at least one check returns true. No checks means false.
+                let mut result = false;
+                for c in children {
+                    if c.eval(payload)? {
+                        result = true;
+                        break;
+                    }
+                }
+                Ok(result)
+            }
             Self::IsPr => Ok(payload.issue.pull_request.is_some()),
             Self::UserIs(expected) => {
                 let result = expected.contains(&payload.comment.author_association);
