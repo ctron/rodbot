@@ -34,6 +34,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     let config = matches.value_of("config").unwrap_or("rodbot.yaml");
+    log::debug!("Loading configuration from: {}", config);
 
     let event = Event::from_env()?;
     let config: Config =
