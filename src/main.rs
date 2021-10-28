@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
     let config = matches.value_of("config").unwrap_or("rodbot.yaml");
     log::debug!("Loading configuration from: {}", config);
 
-    let event = Event::from_env()?;
+    let event = Event::from_env().context("Failed getting event information")?;
     let config: Config =
         serde_yaml::from_reader(File::open(config)?).context("Loading configuration")?;
     log::debug!("Event: {:#?}", event);

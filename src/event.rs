@@ -12,7 +12,9 @@ pub enum Event {
 impl Event {
     pub fn from_env() -> anyhow::Result<Self> {
         match std::env::var("GITHUB_EVENT_NAME").as_deref() {
-            Ok("issue_comment") => Ok(Event::IssueComment(Self::parse_payload()?)),
+            Ok("issue_comment") => Ok(Event::IssueComment(
+                Self::parse_payload().context("Failed to parse event payload")?,
+            )),
             Ok(name) => Err(anyhow::anyhow!(
                 "Unknown or unsupported event type: {}",
                 name
