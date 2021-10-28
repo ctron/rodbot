@@ -7,7 +7,7 @@ use crate::{
     runner::{Context, Runner},
 };
 use anyhow::Context as _;
-use clap::Arg;
+use clap::{crate_version, Arg};
 use event::Event;
 use log::LevelFilter;
 use serde_json::json;
@@ -17,6 +17,7 @@ use std::fs::File;
 fn main() -> anyhow::Result<()> {
     let matches = clap::App::new("Rodney Bot")
         .author("Jens Reimann <ctron@dentrassi.de>")
+        .version(crate_version!())
         .arg(
             Arg::with_name("config")
                 .long("config")
