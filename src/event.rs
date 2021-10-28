@@ -67,12 +67,23 @@ pub struct Issue {
     pub body: Option<String>,
     pub comments: u64,
     pub id: u64,
-    pub labels: Vec<String>,
+    pub labels: Vec<Label>,
     pub locked: bool,
     pub number: u64,
 
     pub pull_request: Option<PullRequest>,
 
+    pub url: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Label {
+    pub color: String,
+    pub default: bool,
+    pub description: Option<String>,
+    pub id: u64,
+    pub name: String,
+    pub node_id: String,
     pub url: String,
 }
 
